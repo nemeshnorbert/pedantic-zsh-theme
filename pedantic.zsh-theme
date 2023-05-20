@@ -182,7 +182,7 @@ function __pedantic_timestamp() {
 
 function __pedantic_elapsed_time() {
     echo -n 'took '
-    __pedantic_decorate '${prompt_elapsed_time:-0s}' "${PEDANTIC_ELAPSED_TIME_COLOUR}" "${PEDANTIC_ELAPSED_TIME_BOLD}"
+    __pedantic_decorate "${prompt_elapsed_time:-0s}" "${PEDANTIC_ELAPSED_TIME_COLOUR}" "${PEDANTIC_ELAPSED_TIME_BOLD}"
     echo -n ' '
 }
 
@@ -219,10 +219,5 @@ function __pedantic_build_prompt() {
 function __pedantic_build_right_prompt() {
 }
 
-function __pedantic_build_theme () {
-    local command_status=$?
-    PROMPT=$(__pedantic_build_prompt "${command_status}")
-    RPROMPT=$(__pedantic_build_right_prompt "${comand_status}")
-}
-
-__pedantic_build_theme
+PROMPT='$(__pedantic_build_prompt)'
+RPROMPT='$(__pedantic_build_right_prompt)'
