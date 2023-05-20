@@ -60,11 +60,11 @@ ZSH_THEME_GIT_PROMPT_BEHIND="${ZSH_THEME_GIT_PROMPT_BEHIND:-${PEDANTIC_GIT_SYMBO
 ZSH_THEME_GIT_PROMPT_DIVERGED="${ZSH_THEME_GIT_PROMPT_DIVERGED:-${PEDANTIC_GIT_SYMBOL_DIVERGED}}";
 
 
-pedanticNewline () {
+function __pedantic_new_line () {
     echo '';
 }
 
-pedanticDecorate () {
+function __pedantic_decorate() {
     if [[ $2 == 'reset' ]]; then
         echo -n "%{$reset_color%}";
     else
@@ -136,41 +136,41 @@ function __pedantic_python_environment () {
    if [[ -n $PYTHON_ENVIRONMENT ]]; then
        echo -n "with";
        echo -n " ";
-       pedanticDecorate `basename ${PYTHON_ENVIRONMENT}` "${PEDANTIC_PYTHON_ENVIRONMENT_COLOUR}" "${PEDANTIC_PYTHON_ENVIRONMENT_BOLD}";
+       __pedantic_decorate `basename ${PYTHON_ENVIRONMENT}` "${PEDANTIC_PYTHON_ENVIRONMENT_COLOUR}" "${PEDANTIC_PYTHON_ENVIRONMENT_BOLD}";
        echo -n ' ';
 
    fi
 }
 
 
-pedanticBuildTheme () {
+function __pedantic_build_theme () {
     if [[ ${PEDANTIC_SHOW_BLANK_LINE} = true ]]; then
-        pedanticNewline;
+        __pedantic_new_line
     fi;
     if [[ ${PEDANTIC_SHOW_TIMESTAMP} = true ]]; then
-        pedanticTimestamp;
+        __pedantic_timestamp
         echo -n ' ';
     fi;
         if [[ ${PEDANTIC_SHOW_PYTHON_ENVIRONMENT} = true ]]; then
-        pedanticPythonEnvironment;
+        __pedantic_python_environment;
     fi;
     if [[ ${PEDANTIC_SHOW_USER} = true ]]; then
-        pedanticUser;
+        __pedantic_user
         echo -n ' ';
     fi;
     if [[ ${PEDANTIC_SHOW_HOSTNAME} = true ]]; then
-        pedanticHostname;
+        __pedantic_host_name
         echo -n ' ';
     fi;
     if [[ ${PEDANTIC_SHOW_CURRENT_DIR} = true ]]; then
-        pedanticCurrentDir;
+        __pedantic_current_dir
         echo -n ' ';
     fi;
     if [[ ${PEDANTIC_SHOW_GIT} = true ]]; then
-        pedanticGitStatus;
+        __pedantic_git_status
     fi;
-    pedanticNewline;
-    pedanticPrompt;
+    __pedantic_new_line
+    __pedantic_prompt
 }
 
-PROMPT='$(pedanticBuildTheme)'
+PROMPT=$(__pedantic_build_theme)
