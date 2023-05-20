@@ -37,6 +37,14 @@ PEDANTIC_TIMESTAMP_FORMAT="${PEDANTIC_TIMESTAMP_FORMAT:-%H:%M:%S}" # see man str
 
 PEDANTIC_PROMPT="${PEDANTIC_PROMPT:-$}"
 
+PEDANTIC_GIT_DISPLAY_BRANCH_BEHIND_AND_AHEAD="${PEDANTIC_GIT_DISPLAY_BRANCH_BEHIND_AND_AHEAD:-true}"
+PEDANTIC_GIT_ENABLE_FILE_STATUS="${PEDANTIC_GIT_ENABLE_FILE_STATUS:-true}"
+PEDANTIC_GIT_SHOW_STATUS_WHEN_ZERO="${PEDANTIC_GIT_SHOW_STATUS_WHEN_ZERO:-false}"
+PEDANTIC_GIT_ENABLE_STASH_STATUS="${PEDANTIC_GIT_ENABLE_STASH_STATUS:-true}"
+PEDANTIC_GIT_ENABLE_STATUS_SYMBOL="${PEDANTIC_GIT_ENABLE_STATUS_SYMBOL:-true}"
+PEDANTIC_GIT_DESCRIBE_STYLE="${PEDANTIC_GIT_DESCRIBE_STYLE:-}"
+
+
 # Elapsed time calc
 
 prompt_preexec() {
@@ -72,7 +80,7 @@ prompt_precmd() {
 #
 function __has_git() {
     local where_git=$(command -v git)
-    if [ -z "${where_git}" ]; then
+    if [[ -z "${where_git}" ]]; then
         echo "false"
     else
         echo "true"
@@ -86,12 +94,10 @@ function __get_git_dir() {
     fi
 }
 
-function __posh_color() {
-    echo $1
-}
-
 # Echoes the git status string.
 function __posh_git_echo () {
+    local git_repo=$1
+
     local red='\033[0;31m'
     local green='\033[0;32m'
     local bright_red='\033[0;91m'
@@ -99,97 +105,60 @@ function __posh_git_echo () {
     local bright_yellow='\033[0;93m'
     local bright_cyan='\033[0;96m'
 
-    local default_foreground_color
-    default_foreground_color=$(__posh_color '\e[m') # Default no color
-    local default_background_color=
+    local default_foreground_color='\e[m' # Default no color
+    local default_background_color=''
 
     local before_text='['
-    local before_foreground_color
-    before_foreground_color=$(__posh_color "${bright_yellow}") # Yellow
-    local before_background_color=
+    local before_foreground_color="${bright_yellow}" # Yellow
+    local before_background_color=''
     local delim_text=' |'
-    local delim_foreground_color
-    delim_foreground_color=$(__posh_color "${bright_yellow}") # Yellow
-    local delim_background_color=
+    local delim_foreground_color="${bright_yellow}" # Yellow
+    local delim_background_color=''
 
     local after_text=']'
-    local after_foreground_color
-    after_foreground_color=$(__posh_color "${bright_yellow}") # Yellow
-    local after_background_color=
+    local after_foreground_color="${bright_yellow}" # Yellow
+    local after_background_color=''
 
-    local branch_foreground_color
-    branch_foreground_color=$(__posh_color "${bright_cyan}")  # Cyan
-    local branch_background_color=
-    local branch_ahead_foreground_color
-    branch_ahead_foreground_color=$(__posh_color "${bright_green}") # green
-    local branch_ahead_background_color=
-    local branch_behind_foreground_color
-    branch_behind_foreground_color=$(__posh_color "${bright_red}") # red
-    local branch_behind_background_color=
-    local branch_behind_and_ahead_foreground_color
-    branch_behind_and_ahead_foreground_color=$(__posh_color "${bright_yellow}") # Yellow
-    local branch_behind_and_ahead_background_color=
+    local branch_foreground_color="${bright_cyan}"  # Cyan
+    local branch_background_color=''
+    local branch_ahead_foreground_color="${bright_green}" # green
+    local branch_ahead_background_color=''
+    local branch_behind_foreground_color="${bright_red}" # red
+    local branch_behind_background_color=''
+    local branch_behind_and_ahead_foreground_color="${bright_yellow}" # Yellow
+    local branch_behind_and_ahead_background_color=''
 
-    local index_foreground_color
-    index_foreground_color=$(__posh_color "${green}") # Dark green
-    local index_background_color=
+    local index_foreground_color="${green}" # Dark green
+    local index_background_color=''
 
-    local working_foreground_color
-    working_foreground_color=$(__posh_color "${red}") # Dark red
-    local working_background_color=
+    local working_foreground_color="${red}" # Dark red
+    local working_background_color=''
 
-    local stash_foreground_color
-    stash_foreground_color=$(__posh_color "${bright_red}") # red
-    local stash_background_color=
+    local stash_foreground_color="${bright_red}" # red
+    local stash_background_color=''
     local before_stash='('
     local after_stash=')'
 
     local local_default_status_symbol=''
     local local_working_status_symbol=' !'
-    local local_working_status_color
-    local_working_status_color=$(__posh_color "${red}")
+    local local_working_status_color="${red}"
     local local_staged_status_symbol=' ~'
-    local local_staged_status_color
-    local_staged_status_color=$(__posh_color "${bright_cyan}")
+    local local_staged_status_color="${bright_cyan}"
 
-    local rebase_foreground_color
-    rebase_foreground_color=$(__posh_color '\e[0m') # reset
-    local rebase_background_color=
+    local rebase_foreground_color='\e[0m' # reset
+    local rebase_background_color=''
 
-    local branch_behind_and_ahead_display
-    branch_behind_and_ahead_display=$(git config --get bash.branchBehindAndAheadDisplay)
-    if [ -z "${branch_behind_and_ahead_display}" ]; then
+    local branch_behind_and_ahead_display=''
+    if [[ ${PEDANTIC_GIT_DISPLAY_BRANCH_BEHIND_AND_AHEAD} = true ]]; then
         branch_behind_and_ahead_display="full"
+    else
+        branch_behind_and_ahead_display="compact"
     fi
 
-    local enable_file_status
-    enable_file_status=$(git config --bool bash.enableFileStatus)
-    case "${enable_file_status}" in
-        true)  enable_file_status=true ;;
-        false) enable_file_status=false ;;
-        *)     enable_file_status=true ;;
-    esac
-    local show_status_when_zero
-    show_status_when_zero=$(git config --bool bash.showStatusWhenZero)
-    case "${show_status_when_zero}" in
-        true)  show_status_when_zero=true ;;
-        false) show_status_when_zero=false ;;
-        *)     show_status_when_zero=false ;;
-    esac
-    local enable_stash_status
-    enable_stash_status=$(git config --bool bash.enableStashStatus)
-    case "${enable_stash_status}" in
-        true)  enable_stash_status=true ;;
-        false) enable_stash_status=false ;;
-        *)     enable_stash_status=true ;;
-    esac
-    local enable_status_symbol
-    enable_status_symbol=$(git config --bool bash.enableStatusSymbol)
-    case "${enable_status_symbol}" in
-        true)  enable_status_symbol=true ;;
-        false) enable_status_symbol=false ;;
-        *)     enable_status_symbol=true ;;
-    esac
+    local enable_file_status="${PEDANTIC_GIT_ENABLE_FILE_STATUS}"
+    local show_status_when_zero="${PEDANTIC_GIT_SHOW_STATUS_WHEN_ZERO}"
+    local enable_stash_status="${PEDANTIC_GIT_ENABLE_STASH_STATUS}"
+    local enable_status_symbol="${PEDANTIC_GIT_ENABLE_STATUS_SYMBOL}"
 
     local branch_identical_status_symbol=''
     local branch_ahead_status_symbol=''
@@ -208,11 +177,6 @@ function __posh_git_echo () {
     __POSH_BRANCH_AHEAD_BY=0
     __POSH_BRANCH_BEHIND_BY=0
 
-    local git_repo
-    git_repo=$(__get_git_dir "$@")
-    if [ -z "${git_repo}" ]; then
-        return # not a git directory
-    fi
     local rebase=''
     local b=''
     local step=''
@@ -249,7 +213,7 @@ function __posh_git_echo () {
 
         b=$(git symbolic-ref HEAD 2>/dev/null) || {
             local output
-            output=$(git config -z --get bash.describeStyle)
+            output="${PEDANTIC_GIT_DESCRIBE_STYLE}"
             if [ -n "${output}" ]; then
                 GIT_PS1_DESCRIBESTYLE=${output}
             fi
@@ -356,7 +320,7 @@ function __posh_git_echo () {
         done <<< "$(git status --porcelain 2>/dev/null)"
     fi
 
-    local git_string=
+    local git_string=''
     local branch_string="${is_bare}${b##refs/heads/}"
 
     # before-branch text
@@ -578,11 +542,14 @@ function __pedantic_current_dir() {
 
 function __pedantic_git_status () {
     if [[ $(__has_git) = true ]]; then
-        local GIT_STATUS=$(__posh_git_echo)
-        if [[ -n "${GIT_STATUS}" ]]; then
-            echo -n 'at '
-            echo -n "${GIT_STATUS}"
-            echo -n ' '
+        local git_repo=$(__get_git_dir)
+        if [ -n "${git_repo}" ]; then
+            local GIT_STATUS=$(__posh_git_echo "${git_repo}")
+            if [[ -n "${GIT_STATUS}" ]]; then
+                echo -n 'at '
+                echo -n "${GIT_STATUS}"
+                echo -n ' '
+            fi
         fi
     fi
 }
