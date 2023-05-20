@@ -1,0 +1,1 @@
+# pedantic-zsh-theme
