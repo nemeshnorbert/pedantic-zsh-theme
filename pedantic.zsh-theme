@@ -6,7 +6,7 @@
 #      PEDANTIC_SHOW_HOSTNAME=false;
 #      PEDANTIC_CURRENT_DIR_COLOUR=yellow;
 
-PEDANTIC_SHOW_BLANK_LINE="${PEDANTIC_SHOW_BLANK_LINE:-true}";
+PEDANTIC_SHOW_BLANK_LINE="${PEDANTIC_SHOW_BLANK_LINE:-false}";
 PEDANTIC_SHOW_TIMESTAMP="${PEDANTIC_SHOW_TIMESTAMP:-true}";
 PEDANTIC_SHOW_USER="${PEDANTIC_SHOW_USER:-true}";
 PEDANTIC_SHOW_HOSTNAME="${PEDANTIC_SHOW_HOSTNAME:-true}";
@@ -33,7 +33,7 @@ PEDANTIC_PYTHON_ENVIRONMENT_BOLD="${PEDANTIC_PYTHON_ENVIRONMENT_BOLD:-false}";
 
 PEDANTIC_TIMESTAMP_FORMAT="${PEDANTIC_TIMESTAMP_FORMAT:-%H:%M:%S}"; # see man strftime
 
-PEDANTIC_PROMPT="${PEDANTIC_PROMPT:-→}";
+PEDANTIC_PROMPT="${PEDANTIC_PROMPT:-$}";
 
 PEDANTIC_GIT_SYMBOL_UNTRACKED="${PEDANTIC_GIT_SYMBOL_UNTRACKED:-?}";
 PEDANTIC_GIT_SYMBOL_ADDED="${PEDANTIC_GIT_SYMBOL_ADDED:-+}";
@@ -47,8 +47,6 @@ PEDANTIC_GIT_SYMBOL_BEHIND="${PEDANTIC_GIT_SYMBOL_BEHIND:-↓}";
 PEDANTIC_GIT_SYMBOL_DIVERGED="${PEDANTIC_GIT_SYMBOL_DIVERGED:-~}";
 
 # --
-
-
 
 ZSH_THEME_GIT_PROMPT_UNTRACKED="${ZSH_THEME_GIT_PROMPT_UNTRACKED:-${PEDANTIC_GIT_SYMBOL_UNTRACKED}}";
 ZSH_THEME_GIT_PROMPT_ADDED="${ZSH_THEME_GIT_PROMPT_ADDED:-${PEDANTIC_GIT_SYMBOL_ADDED}}";
@@ -82,53 +80,53 @@ pedanticDecorate () {
 }
 
 
-pedanticUser () {
+function __pedantic_user() {
     echo -n 'as';
     echo -n ' ';
     if [[ $USER == 'root' ]]; then
-        pedanticDecorate '%n' "${PEDANTIC_ROOT_USER_COLOUR}" "${PEDANTIC_ROOT_USER_BOLD}";
+        __pedantic_decorate '%n' "${PEDANTIC_ROOT_USER_COLOUR}" "${PEDANTIC_ROOT_USER_BOLD}";
     else
-        pedanticDecorate '%n' "${PEDANTIC_USER_COLOUR}" "${PEDANTIC_USER_BOLD}";
+        __pedantic_decorate '%n' "${PEDANTIC_USER_COLOUR}" "${PEDANTIC_USER_BOLD}";
     fi;
 }
 
-pedanticHostname () {
+function __pedantic_host_name () {
     echo -n 'on';
     echo -n ' ';
-    pedanticDecorate '%m' "${PEDANTIC_HOSTNAME_COLOUR}" "${PEDANTIC_HOSTNAME_BOLD}";
+    __pedantic_decorate '%m' "${PEDANTIC_HOSTNAME_COLOUR}" "${PEDANTIC_HOSTNAME_BOLD}";
 }
 
-pedanticCurrentDir () {
+function __pedantic_current_dir() {
     echo -n 'in';
     echo -n ' ';
-    pedanticDecorate '%~' "${PEDANTIC_CURRENT_DIR_COLOUR}" "${PEDANTIC_CURRENT_DIR_BOLD}";
+    __pedantic_decorate '%~' "${PEDANTIC_CURRENT_DIR_COLOUR}" "${PEDANTIC_CURRENT_DIR_BOLD}";
 }
 
-pedanticGitStatus () {
+function __pedantic_git_status () {
     PEDANTIC_GIT_CURRENT_BRANCH=`git_current_branch | xargs echo -n`;
     PEDANTIC_GIT_PROMPT_STATUS=`git_prompt_status | sed -E 's/!+/!/g' | xargs echo -n`;
     if [[ ! -z "${PEDANTIC_GIT_CURRENT_BRANCH}" ]]; then
         echo -n 'at';
         echo -n ' ';
-        pedanticDecorate "${PEDANTIC_GIT_CURRENT_BRANCH}" "${PEDANTIC_GIT_COLOUR}" "${PEDANTIC_GIT_BOLD}";
+        __pedantic_decorate "${PEDANTIC_GIT_CURRENT_BRANCH}" "${PEDANTIC_GIT_COLOUR}" "${PEDANTIC_GIT_BOLD}";
         if [[ ! -z "${PEDANTIC_GIT_PROMPT_STATUS}" ]]; then
-            pedanticDecorate "(${PEDANTIC_GIT_PROMPT_STATUS})" "${PEDANTIC_GIT_COLOUR}" "${PEDANTIC_GIT_BOLD}";
+            __pedantic_decorate "(${PEDANTIC_GIT_PROMPT_STATUS})" "${PEDANTIC_GIT_COLOUR}" "${PEDANTIC_GIT_BOLD}";
         fi;
     fi;
 }
 
-pedanticTimestamp () {
-    pedanticDecorate "%D{${PEDANTIC_TIMESTAMP_FORMAT}}" "${PEDANTIC_TIMESTAMP_COLOUR}" "${PEDANTIC_TIMESTAMP_BOLD}";
+function __pedantic_timestamp() {
+    __pedantic_decorate "%D{${PEDANTIC_TIMESTAMP_FORMAT}}" "${PEDANTIC_TIMESTAMP_COLOUR}" "${PEDANTIC_TIMESTAMP_BOLD}";
 }
 
-pedanticPrompt () {
+function __pedantic_prompt () {
     echo -n "%(?.%{$reset_color%}.%{$fg[red]%})";
     echo -n "${PEDANTIC_PROMPT}";
     echo -n "%{$reset_color%}";
     echo -n ' ';
 }
 
-pedanticPythonEnvironment () {
+function __pedantic_python_environment () {
 
    if [[ -n $VIRTUAL_ENV ]]; then
        PYTHON_ENVIRONMENT=$VIRTUAL_ENV
@@ -149,7 +147,6 @@ pedanticBuildTheme () {
     if [[ ${PEDANTIC_SHOW_BLANK_LINE} = true ]]; then
         pedanticNewline;
     fi;
-    echo -n '  ';
     if [[ ${PEDANTIC_SHOW_TIMESTAMP} = true ]]; then
         pedanticTimestamp;
         echo -n ' ';
