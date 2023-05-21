@@ -24,7 +24,7 @@ Theme is inspired by [dannynimmo/punctual-zsh-theme](https://github.com/dannynim
 ### Antigen
 Include the following line to `~/.zshrc` as part of your antigen setup (after any [configuration settings](#configuration)).
 ```zsh
-antigen theme dannynimmo/punctual-zsh-theme punctual
+antigen theme nemeshnorbert/pedantic-zsh-theme pedantic
 ```
 
 ## Configuration
