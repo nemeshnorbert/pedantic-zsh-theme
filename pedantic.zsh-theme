@@ -43,15 +43,16 @@ PEDANTIC_GIT_SHOW_STATUS_WHEN_ZERO="${PEDANTIC_GIT_SHOW_STATUS_WHEN_ZERO:-false}
 PEDANTIC_GIT_ENABLE_STASH_STATUS="${PEDANTIC_GIT_ENABLE_STASH_STATUS:-true}"
 PEDANTIC_GIT_ENABLE_STATUS_SYMBOL="${PEDANTIC_GIT_ENABLE_STATUS_SYMBOL:-true}"
 PEDANTIC_GIT_DESCRIBE_STYLE="${PEDANTIC_GIT_DESCRIBE_STYLE:-}"
+PEDANTIC_GIT_SHOW_UPSTREAM="${PEDANTIC_GIT_SHOW_UPSTREAM:-true}"
 
 
 # Elapsed time calc
 
-prompt_preexec() {
+__pedantic_preexec() {
   prompt_prexec_realtime=${EPOCHREALTIME}
 }
 
-prompt_precmd() {
+__pedantic_precmd() {
     if (( prompt_prexec_realtime )); then
         local -rF elapsed_realtime=$(( EPOCHREALTIME - prompt_prexec_realtime ))
         local -rF s=$(( elapsed_realtime%60 ))
@@ -78,7 +79,7 @@ prompt_precmd() {
 
 # Git status
 #
-function __has_git() {
+function __pedantic_has_git() {
     local where_git=$(command -v git)
     if [[ -z "${where_git}" ]]; then
         echo "false"
@@ -87,15 +88,14 @@ function __has_git() {
     fi
 }
 
-function __get_git_dir() {
+function __pedantic_get_git_dir() {
     local repo_dir=$(git rev-parse --show-toplevel 2>/dev/null)
     if [[ ! -z "${repo_dir}" ]]; then
         echo "${repo_dir}/.git"
     fi
 }
 
-# Echoes the git status string.
-function __posh_git_echo () {
+function __pedantic_get_git_status() {
     local git_repo=$1
 
     local red='\033[0;31m'
@@ -108,14 +108,14 @@ function __posh_git_echo () {
     local default_foreground_color='\e[m' # Default no color
     local default_background_color=''
 
-    local before_text='['
+    local before_text='[ '
     local before_foreground_color="${bright_yellow}" # Yellow
     local before_background_color=''
     local delim_text=' |'
     local delim_foreground_color="${bright_yellow}" # Yellow
     local delim_background_color=''
 
-    local after_text=']'
+    local after_text=' ]'
     local after_foreground_color="${bright_yellow}" # Yellow
     local after_background_color=''
 
@@ -172,10 +172,6 @@ function __posh_git_echo () {
       branch_behind_and_ahead_status_symbol=$'\xE2\x86\x95' # Up and Down Arrow
       branch_warning_status_symbol=' ?'
     fi
-
-    # these globals are updated by __posh_git_ps1_upstream_divergence
-    __POSH_BRANCH_AHEAD_BY=0
-    __POSH_BRANCH_BEHIND_BY=0
 
     local rebase=''
     local b=''
@@ -258,7 +254,10 @@ function __posh_git_echo () {
                 stash_count=$(git stash list | wc -l | tr -d '[:space:]')
             fi
         fi
-        __posh_git_ps1_upstream_divergence
+        local counters()
+        IFS=" " read -r -a counters <<< "$(__pedantic_get_upstream_divergence)"
+        local posh_branch_behind_by=$counters[1]
+        local posh_branch_ahead_by=$counters[2]
         local divergence_return_code=$?
     fi
 
@@ -320,33 +319,32 @@ function __posh_git_echo () {
         done <<< "$(git status --porcelain 2>/dev/null)"
     fi
 
-    local git_string=''
     local branch_string="${is_bare}${b##refs/heads/}"
 
     # before-branch text
-    git_string="${before_background_color}${before_foreground_color}${before_text}"
+    local git_string="${before_background_color}${before_foreground_color}${before_text}"
 
     # branch
-    if (( __POSH_BRANCH_BEHIND_BY > 0 && __POSH_BRANCH_AHEAD_BY > 0 )); then
+    if (( posh_branch_behind_by > 0 && posh_branch_ahead_by > 0 )); then
         git_string+="${branch_behind_and_ahead_background_color}${branch_behind_and_ahead_foreground_color}${branch_string}"
         if [ "${branch_behind_and_ahead_display}" = "full" ]; then
-            git_string+="${branch_behind_status_symbol}${__POSH_BRANCH_BEHIND_BY}${branch_ahead_status_symbol}${__POSH_BRANCH_AHEAD_BY}"
+            git_string+="${branch_behind_status_symbol}${posh_branch_behind_by}${branch_ahead_status_symbol}${posh_branch_ahead_by}"
         elif [ "${branch_behind_and_ahead_display}" = "compact" ]; then
-            git_string+=" ${__POSH_BRANCH_BEHIND_BY}${branch_behind_and_ahead_status_symbol}${__POSH_BRANCH_AHEAD_BY}"
+            git_string+=" ${posh_branch_behind_by}${branch_behind_and_ahead_status_symbol}${posh_branch_ahead_by}"
         else
             git_string+=" ${branch_behind_and_ahead_status_symbol}"
         fi
-    elif (( __POSH_BRANCH_BEHIND_BY > 0 )); then
+    elif (( posh_branch_behind_by > 0 )); then
         git_string+="${branch_behind_background_color}${branch_behind_foreground_color}${branch_string}"
         if [ "${branch_behind_and_ahead_display}" = "full" ] || [ "${branch_behind_and_ahead_display}" = "compact" ]; then
-            git_string+="${branch_behind_status_symbol}${__POSH_BRANCH_BEHIND_BY}"
+            git_string+="${branch_behind_status_symbol}${posh_branch_behind_by}"
         else
             git_string+="${branch_behind_status_symbol}"
         fi
-    elif (( __POSH_BRANCH_AHEAD_BY > 0 )); then
+    elif (( posh_branch_ahead_by > 0 )); then
         git_string+="${branch_ahead_background_color}${branch_ahead_foreground_color}${branch_string}"
         if [ "${branch_behind_and_ahead_display}" = "full" ] || [ "${branch_behind_and_ahead_display}" = "compact" ]; then
-            git_string+="${branch_ahead_status_symbol}${__POSH_BRANCH_AHEAD_BY}"
+            git_string+="${branch_ahead_status_symbol}${posh_branch_ahead_by}"
         else
             git_string+="${branch_ahead_status_symbol}"
         fi
@@ -404,95 +402,24 @@ function __posh_git_echo () {
     echo -n "${git_string}"
 }
 
-# Updates the global variables `__POSH_BRANCH_AHEAD_BY` and `__POSH_BRANCH_BEHIND_BY`.
-function __posh_git_ps1_upstream_divergence () {
-    local key value
-    local svn_remote svn_url_pattern
-    local upstream=git          # default
-    local legacy=''
+function __pedantic_get_upstream_divergence () {
+    if [[ ${PEDANTIC_GIT_SHOW_UPSTREAM} = false ]]; then
+        return
+    fi
 
-    svn_remote=()
-    # get some config options from git-config
-    local output
-    output="$(git config -z --get-regexp '^(svn-remote\..*\.url|bash\.showUpstream)$' 2>/dev/null | tr '\0\n' '\n ')"
-    while read -r key value; do
-        case "${key}" in
-        bash.showUpstream)
-            GIT_PS1_SHOWUPSTREAM="${value}"
-            if [ -z "${GIT_PS1_SHOWUPSTREAM}" ]; then
-                return
-            fi
-            ;;
-        svn-remote.*.url)
-            svn_remote[ $((${#svn_remote[@]} + 1)) ]="${value}"
-            svn_url_pattern+="\\|${value}"
-            upstream=svn+git # default upstream is SVN if available, else git
-            ;;
+    posh_branch_ahead_by=0
+    posh_branch_behind_by=0
+    local upstream='@{upstream}'
+    local output=$(git rev-list --left-right @{upstream}...HEAD 2>/dev/null)
+    local return_code=$?
+    # produce equivalent output to --count for older versions of git
+    while IFS=$' \t\n' read -r commit; do
+        case "${commit}" in
+        "<*") (( posh_branch_behind_by++ )) ;;
+        ">*") (( posh_branch_ahead_by++ ))  ;;
         esac
     done <<< "${output}"
-
-    # parse configuration values
-    for option in ${GIT_PS1_SHOWUPSTREAM}; do
-        case "${option}" in
-        git|svn) upstream="${option}" ;;
-        legacy)  legacy=1  ;;
-        esac
-    done
-
-    # Find our upstream
-    case "${upstream}" in
-    git)    upstream='@{upstream}' ;;
-    svn*)
-        # get the upstream from the "git-svn-id: ..." in a commit message
-        # (git-svn uses essentially the same procedure internally)
-        local svn_upstreams=()
-        while IFS='' read -r line; do
-            svn_upstreams+=("${line}");
-        done < <(git log --first-parent -1 --grep="^git-svn-id: \(${svn_url_pattern#??}\)" 2>/dev/null)
-        if (( 0 != ${#svn_upstream[@]} )); then
-            svn_upstream=${svn_upstreams[ ${#svn_upstreams[@]} - 2 ]}
-            svn_upstream=${svn_upstream%@*}
-            local n_stop="${#svn_remote[@]}"
-            local n
-            for ((n=1; n <= n_stop; n++)); do
-                svn_upstream=${svn_upstream#${svn_remote[${n}]}}
-            done
-
-            if [ -z "${svn_upstream}" ]; then
-                # default branch name for checkouts with no layout:
-                upstream=${GIT_SVN_ID:-git-svn}
-            else
-                upstream=${svn_upstream#/}
-            fi
-        elif [ 'svn+git' = "${upstream}" ]; then
-            upstream='@{upstream}'
-        fi
-        ;;
-    esac
-
-    local return_code=
-    __POSH_BRANCH_AHEAD_BY=0
-    __POSH_BRANCH_BEHIND_BY=0
-    # Find how many commits we are ahead/behind our upstream
-    if [ -z "${legacy}" ]; then
-        local output=
-        output=$(git rev-list --count --left-right ${upstream}...HEAD 2>/dev/null)
-        return_code=$?
-        IFS=$' \t\n' read -r __POSH_BRANCH_BEHIND_BY __POSH_BRANCH_AHEAD_BY <<< "${output}"
-    else
-        local output
-        output=$(git rev-list --left-right ${upstream}...HEAD 2>/dev/null)
-        return_code=$?
-        # produce equivalent output to --count for older versions of git
-        while IFS=$' \t\n' read -r commit; do
-            case "${commit}" in
-            "<*") (( __POSH_BRANCH_BEHIND_BY++ )) ;;
-            ">*") (( __POSH_BRANCH_AHEAD_BY++ ))  ;;
-            esac
-        done <<< "${output}"
-    fi
-    : "${__POSH_BRANCH_AHEAD_BY:=0}"
-    : "${__POSH_BRANCH_BEHIND_BY:=0}"
+    echo "${posh_branch_behind_by}" "${posh_branch_ahead_by}"
     return ${return_code}
 }
 
@@ -541,10 +468,10 @@ function __pedantic_current_dir() {
 }
 
 function __pedantic_git_status () {
-    if [[ $(__has_git) = true ]]; then
-        local git_repo=$(__get_git_dir)
+    if [[ $(__pedantic_has_git) = true ]]; then
+        local git_repo=$(__pedantic_get_git_dir)
         if [ -n "${git_repo}" ]; then
-            local GIT_STATUS=$(__posh_git_echo "${git_repo}")
+            local GIT_STATUS=$(__pedantic_get_git_status "${git_repo}")
             if [[ -n "${GIT_STATUS}" ]]; then
                 echo -n 'at '
                 echo -n "${GIT_STATUS}"
@@ -621,8 +548,8 @@ zmodload zsh/datetime
 setopt nopromptbang prompt{cr,percent,sp,subst}
 
 autoload -Uz add-zsh-hook
-add-zsh-hook preexec prompt_preexec
-add-zsh-hook precmd prompt_precmd
+add-zsh-hook preexec __pedantic_preexec
+add-zsh-hook precmd __pedantic_precmd
 
 PROMPT='$(__pedantic_build_prompt)'
 RPROMPT='$(__pedantic_build_right_prompt)'
